@@ -1,0 +1,232 @@
+#!/usr/bin/perl
+use strict;
+use LEOCHARRE::Strings ':all';
+use Getopt::Std::Strict 'hvy';
+our $VERSION = sprintf "%d.%02d", q$Revision: 1.1.1.1 $ =~ /(\d+)/g;
+
+$opt_h and print STDERR usage() and exit;
+$opt_v and print $VERSION and exit;
+
+
+sub usage {q{cpanauthor [OPTION].. AUTHOR DISTRO
+print to stdout url to download link to AUTHOR DISTRO latest version
+
+   -h    help
+   -v    version
+   -y	   output yaml for use with tmpltk
+
+Try 'man cpanauthor' for more info.
+}}
+
+
+
+my $AUTHOR;
+my $DISTRO_NAME;
+my $AUTHOR_URL;
+my $DISTRO_DOWNLOAD_URL;
+
+
+
+
+#http://search.cpan.org/CPAN/authors/id/L/LE/LEOCHARRE/kiaki-1.02.tar.gz
+my $BASE_URL = 'http://search.cpan.org/CPAN/authors/id';
+#my $BASE_URL = 'http://www.stathy.com/CPAN/authors/id';
+
+###############################################################################
+
+($AUTHOR, $DISTRO_NAME) = @ARGV;
+$AUTHOR or die("missing AUTHOR argument");
+
+###############################################################################
+# AUTHOR URL, dir holding stuff
+
+$AUTHOR=~/^(.)(.)/ or die("cant match first two chars, missing argument?");
+$AUTHOR_URL = "$BASE_URL/$1/$1$2/$AUTHOR/";
+
+### $AUTHOR_URL
+
+my $html = `wget '$AUTHOR_URL' -q -O -`;
+### got listing
+
+my $dist_ext=qr/\.tar\.gz/;
+my $rver=qr/\d+[\.\d]*\d+/;
+
+my %dist;
+
+my @distribution_files;
+my @distribution_names;
+
+
+### parsing listing..
+while ( $html=~/href="([^"]+$dist_ext)"/g){
+   
+   my $distribution_file = $1;
+   $distribution_file=~/(.+)-($rver)$dist_ext$/ or die("cant match into $distribution_file");
+   my $distribution_name = $1;
+   my $distribution_version = $2;
+   
+   
+
+   push @{$dist{$distribution_name}->{versions}}, $distribution_file;
+   $dist{$distribution_name}->{versions}  = [ sort @{$dist{$distribution_name}->{versions}} ];
+   $dist{$distribution_name}->{latest} = $dist{$distribution_name}->{versions}->[-1];
+   $dist{$distribution_name}->{latest_url} = $AUTHOR_URL.$dist{$distribution_name}->{latest};
+
+   $dist{$distribution_name}->{meta} = "$distribution_name-$distribution_version.meta";
+
+   if ( $html=~/"$dist{$distribution_name}->{meta}"/ ){
+      $dist{$distribution_name}->{meta_url} = $AUTHOR_URL.$dist{$distribution_name}->{meta};
+   }
+
+   
+   
+   $dist{$distribution_name}->{readme}= "$distribution_name-$distribution_version.readme";
+
+   if ( $html=~/"$dist{$distribution_name}->{readme}"/ ){
+      $dist{$distribution_name}->{readme_url} = $AUTHOR_URL.$dist{$distribution_name}->{readme};
+   }
+}
+
+my @dists = sort keys %dist;
+### @dists
+
+
+
+###############################################################################
+
+if ($DISTRO_NAME){
+   # find latest
+   my $distro_name = $DISTRO_NAME;
+   $distro_name=~s/::/-/g if $distro_name=~/^[A-Z]/; # assume perl module distro
+
+   exists $dist{$distro_name} or die("can't find dist named '$distro_name'. We have these: '@dists'");
+
+   if ($opt_y){ # yaml for tmpltk
+      my $abstract;
+      my $version;
+
+      if( $dist{$distro_name}->{meta_url} ){
+         my $meta = _get_meta($dist{$distro_name}->{meta_url});
+         $abstract = $meta->{abstract};
+         
+      }
+
+      $dist{$distro_name}->{latest}=~/($rver)$dist_ext$/;
+      $dist{$distro_name}->{version} = $1;
+
+      my %meta = ( 
+         name  => $distro_name, 
+         download_url =>  $dist{$distro_name}->{latest_url},
+         abstract => $abstract,
+         readme_url => $dist{$distro_name}->{readme_url},
+         version => $dist{$distro_name}->{version},
+      );
+
+
+      require YAML;
+      printf "%s\n", YAML::Dump(\%meta);
+      exit 0;
+
+   }
+   else {
+      printf "%s\n", $dist{$distro_name}->{latest_url};
+   }
+   exit 0;
+}
+
+else {
+
+   #if (
+
+   map { printf "%s\n", $_ } @dists;
+
+}
+
+
+sub _get_meta {
+   my $url = shift;
+   $url or die("missing arg");
+   
+   my $dat = `wget $url -q -O -`;
+   $dat or warn("failed getting $url") and return;
+
+   require YAML;
+   my $meta = YAML::Load($dat);
+   return $meta;
+}
+
+
+
+
+
+
+
+__END__
+
+=pod
+
+=head1 NAME
+
+cpanauthor - print to stdout url to download link to AUTHOR DISTRO latest version
+
+=head1 USAGE
+
+cpanauthor [OPTIONS].. AUTHOR DISTRO
+
+   -h    help
+   -v    version
+   -y	   output yaml for use with tmpltk
+
+AUTHOR is the cpan author id.
+DISTRO is the distribution name, module name, etc, without the version number.
+
+=head2 USAGE EXAMPLES
+
+To see abstract and latest version download url, readme and abstract:
+
+   cpanauthor -y LEOCHARRE bugzillareport
+
+To print the download url for latest version
+
+   cpanauthor LEOCHARRRE bugzillareport
+
+To see all the distributions the AUTHOR has
+
+   cpanauthor LEOCHARRE
+
+To download latest of something
+
+   wget `cpanauthor LEOCHARRRE bugzillareport`
+
+=head1 REQUIREMENTS
+
+Getopt::Std::Strict
+LEOCHARRE::Strings
+Test::Simple
+YAML
+wget
+
+=head1 CAVEATS
+
+I'm using this, works nice- it's alpha though. Feel free to make suggestions etc.
+I wrote this took because it does what I need.
+
+=head1 AUTHOR
+
+Leo Charre leocharre at cpan dot org
+
+=head1 LICENSE
+
+This package is free software; you can redistribute it and/or modify it under the same terms as Perl itself, i.e., under the terms of the "Artistic License" or the "GNU General Public License".
+
+=head1 DISCLAIMER
+
+This package is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the "GNU General Public License" for more details.
+
+=cut
+
+
+
+

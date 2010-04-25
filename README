@@ -1,0 +1,68 @@
+
+================================================================================
+
+cpanauthor - print to stdout url to download link to AUTHOR DISTRO
+    latest version
+
+USAGE
+    cpanauthor [OPTIONS].. AUTHOR DISTRO
+
+       -h    help
+       -v    version
+       -y      output yaml for use with tmpltk
+
+    AUTHOR is the cpan author id. DISTRO is the distribution name, module
+    name, etc, without the version number.
+
+  USAGE EXAMPLES
+    To see abstract and latest version download url, readme and abstract:
+
+       cpanauthor -y LEOCHARRE bugzillareport
+
+    To print the download url for latest version
+
+       cpanauthor LEOCHARRRE bugzillareport
+
+    To see all the distributions the AUTHOR has
+
+       cpanauthor LEOCHARRE
+
+    To download latest of something
+
+       wget `cpanauthor LEOCHARRRE bugzillareport`
+
+AUTHOR
+    Leo Charre leocharre at cpan dot org
+
+LICENSE
+    This package is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, i.e., under the terms of the
+    "Artistic License" or the "GNU General Public License".
+
+DISCLAIMER
+    This package is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+    See the "GNU General Public License" for more details.
+
+
+--------------------------------------------------------------------------------
+
+
+
+REQUIRES
+
+Getopt::Std::Strict: 1.01
+LEOCHARRE::Strings: 1.01
+Test::Simple: 0
+YAML: 0.70
+
+
+INSTALL
+
+   perl Makefile.PL
+   make install
+
+
+
